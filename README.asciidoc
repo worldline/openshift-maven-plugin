@@ -1,0 +1,27 @@
+== Sample
+
+
+    <build>
+      <plugins>
+        <plugin>
+          <groupId>com.worldline.maven</groupId>
+          <artifactId>openshift-maven-plugin</artifactId>
+          <version>0.1-SNAPSHOT</version>
+          <configuration>
+            <password>${openshift.password}</password>
+            <domain>myDomain</domain>
+            <application>myApplication</application>
+          </configuration>
+        </plugin>
+      </plugins>
+    </build>
+
+then to deploy on OpenShift simply execute:
+
+    mvn clean package openshift:update-application
+
+== Tip
+
+To deploy your war as an exploded one add in the plugin configuration:
+
+    <binary>${project.build.directory}/${project.build.finalName}</binary>
