@@ -6,13 +6,13 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 
 /**
- * force an application to refresh
+ * force an application to scale up
  */
-@Mojo(name = "refresh")
-public class RefreshApplicationMojo extends BaseApplicationMojo {
+@Mojo(name = "scale-up")
+public class ScaleUpApplicationMojo extends BaseApplicationMojo {
     @Override
     public void doExecute(final IOpenShiftConnection connection, final IApplication app) throws MojoExecutionException {
-        app.refresh();
-        getLog().info("Application refreshed");
+        app.scaleUp();
+        getLog().info("Application started");
     }
 }

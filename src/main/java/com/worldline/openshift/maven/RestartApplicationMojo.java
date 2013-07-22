@@ -6,7 +6,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 
 /**
- * for an application to restart
+ * force an application to restart
  */
 @Mojo(name = "restart")
 public class RestartApplicationMojo extends BaseApplicationMojo {

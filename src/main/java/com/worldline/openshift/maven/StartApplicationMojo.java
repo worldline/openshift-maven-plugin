@@ -6,7 +6,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 
 /**
- * for an application to start
+ * force an application to start
  */
 @Mojo(name = "start")
 public class StartApplicationMojo extends BaseApplicationMojo {

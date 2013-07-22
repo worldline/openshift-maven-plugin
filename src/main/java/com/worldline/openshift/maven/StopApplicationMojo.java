@@ -6,7 +6,7 @@ import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 
 /**
- * for an application to stop
+ * force an application to stop
  */
 @Mojo(name = "stop")
 public class StopApplicationMojo extends BaseApplicationMojo {
