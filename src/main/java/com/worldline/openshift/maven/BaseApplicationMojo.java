@@ -49,6 +49,7 @@ public abstract class BaseApplicationMojo extends BaseOpenshift {
         getLog().info(prefix + SPACE + "Url: " + application.getApplicationUrl());
         getLog().info(prefix + SPACE + "Git: " + application.getGitUrl());
         getLog().info(prefix + SPACE + "Aliases: " + application.getAliases());
+        getLog().info(prefix + SPACE + "Gear profile: " + application.getGearProfile().getName());
         getLog().info(prefix + SPACE + "Scale: " + application.getApplicationScale().name());
         getLog().info(prefix + SPACE + "Cartridge: " + application.getCartridge().getName());
         getLog().info(prefix + SPACE + "Created: " + application.getCreationTime());
