@@ -351,8 +351,8 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
             // keep scripts them executable
             if (dest.getName().endsWith(".sh")
                 || dest.getParentFile().getName().equals("action_hooks")) {
-                dest.setExecutable(true);
-                dest.setReadable(true);
+                dest.setExecutable(true, false);
+                dest.setReadable(true, false);
             }
         }
         return copied;
