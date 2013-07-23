@@ -33,7 +33,7 @@ public abstract class BaseOpenshift extends AbstractMojo {
     /**
      * password to log in (a good practise is to put it in settings.xml or as system property)
      */
-    @Parameter(property = PREFIX + "password", required = true)
+    @Parameter(property = PREFIX + "password")
     protected String password;
 
     /**
