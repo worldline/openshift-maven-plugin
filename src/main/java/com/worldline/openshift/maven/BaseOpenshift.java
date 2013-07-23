@@ -6,6 +6,7 @@ import org.apache.maven.plugin.AbstractMojo;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugin.MojoFailureException;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.codehaus.plexus.util.Base64;
 import org.codehaus.plexus.util.IOUtil;
 
 import java.io.File;
@@ -113,6 +114,12 @@ public abstract class BaseOpenshift extends AbstractMojo {
 
         if (user == null) {
             user = config.getProperty("default_rhlogin");
+        }
+        if (password == null) { // not in the default file but would be common when using this plugin
+            password = config.getProperty("maven_plugin_password");
+            if (password != null) {
+                password = new String(Base64.decodeBase64(password.getBytes()));
+            }
         }
         if (serverUrl == null || "openshift.redhat.com".equals(serverUrl)) {
             serverUrl = config.getProperty("libra_server", serverUrl);
