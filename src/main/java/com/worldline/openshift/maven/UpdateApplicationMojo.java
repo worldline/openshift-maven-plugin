@@ -5,6 +5,7 @@ import com.openshift.client.IOpenShiftConnection;
 import org.apache.maven.plugin.MojoExecutionException;
 import org.apache.maven.plugins.annotations.Mojo;
 import org.apache.maven.plugins.annotations.Parameter;
+import org.apache.maven.scm.ScmFile;
 import org.apache.maven.scm.ScmFileSet;
 import org.apache.maven.scm.command.add.AddScmResult;
 import org.apache.maven.scm.command.checkin.CheckInScmResult;
@@ -21,6 +22,7 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Iterator;
 
 /**
@@ -214,7 +216,7 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
                 getLog().info(add.getCommandOutput());
                 getLog().warn("Can't add changes, [" + add.getProviderMessage() + "]");
             } else {
-                if (verbose) {
+                if (verbose && add.getCommandOutput() != null) {
                     getLog().info(add.getCommandOutput());
                 }
             }
@@ -242,7 +244,7 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
                 getLog().info(remove.getCommandOutput());
                 getLog().warn("Can't remove changes, [" + remove.getProviderMessage() + "]");
             } else {
-                if (verbose) {
+                if (verbose && remove.getCommandOutput() != null) {
                     getLog().info(remove.getCommandOutput());
                 }
             }
@@ -260,10 +262,29 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
                 getLog().info(push.getCommandOutput());
                 getLog().warn("Can't push changes, [" + push.getProviderMessage() + "]");
             } else {
+                final int checkedInFilesSize = push.getCheckedInFiles().size();
                 if (verbose) {
-                    getLog().info(push.getCommandOutput());
+                    if (push.getCommandOutput() != null) {
+                        getLog().info(push.getCommandOutput());
+                    }
+                    if (checkedInFilesSize > 0) {
+                        getLog().info("Changes:");
+                        Collections.sort(push.getCheckedInFiles(), new Comparator<ScmFile>() {
+                            @Override
+                            public int compare(ScmFile o1, ScmFile o2) {
+                                if (o1.getStatus().equals(o2.getStatus())) {
+                                    return o1.getPath().compareTo(o2.getPath());
+                                }
+                                return o1.getStatus().toString().compareTo(o2.getStatus().toString());
+                            }
+                        });
+
+                        for (final ScmFile file : push.getCheckedInFiles()) {
+                            getLog().info(SPACE + file.getStatus().toString() + " " + file.getPath());
+                        }
+                    }
                 }
-                getLog().info("Pushed " + push.getCheckedInFiles().size() + " files");
+                getLog().info("Pushed " + checkedInFilesSize + " files");
             }
         } catch (final Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
@@ -295,7 +316,7 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
                 getLog().info(clone.getCommandOutput());
                 throw new MojoExecutionException("Can't clone " + repo.toString());
             } else {
-                if (verbose) {
+                if (verbose && clone.getCommandOutput() != null) {
                     getLog().info(clone.getCommandOutput());
                 }
                 getLog().info("Cloned " + clone.getCheckedOutFiles().size() + " files");
