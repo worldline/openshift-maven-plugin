@@ -72,8 +72,14 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
 
     @Override
     protected void doExecute(final IOpenShiftConnection connection, final IApplication application) throws MojoExecutionException {
-        final String gitUrl = application.getGitUrl();
+        initGitObjects(application.getGitUrl());
+        createWorkingCopy();
+        updateFiles();
 
+        getLog().info("Application redeployed, you can access it on " + application.getApplicationUrl());
+    }
+
+    private void initGitObjects(final String gitUrl) throws MojoExecutionException {
         provider = new GitExeScmProvider();
         fileSet = new ScmFileSet(workDir);
         try {
@@ -81,12 +87,6 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
         } catch (ScmRepositoryException e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
-
-        createWorkingCopy();
-        updateFiles();
-        gitCommit(application.getName());
-
-        getLog().info("Application redeployed, you can access it on " + application.getApplicationUrl());
     }
 
     private void createWorkingCopy() throws MojoExecutionException {
@@ -120,8 +120,6 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
 
             fileSet.getFileList().clear(); // force a git commit -a
             gitCommit(application);
-
-            getLog().info("updated " + destinationName);
         } catch (final IOException e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
