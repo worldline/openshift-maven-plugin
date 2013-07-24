@@ -146,7 +146,13 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
         }
 
         if (binary.isDirectory()) {
-            fileSet.getFileList().addAll(copyDirectory(binary, added));
+            for (final File file : copyDirectory(binary, added)) {
+                if (file.isDirectory()) {
+                    expandFiles(file);
+                } else {
+                    fileSet.getFileList().add(file);
+                }
+            }
         } else {
             FileUtils.copyFile(binary, added);
             fileSet.getFileList().add(added);
