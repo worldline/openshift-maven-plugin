@@ -1,29 +1,39 @@
 package com.worldline.openshift.maven;
 
-import com.openshift.client.IApplication;
-import com.openshift.client.IOpenShiftConnection;
-import org.apache.maven.plugin.MojoExecutionException;
-import org.apache.maven.plugins.annotations.Mojo;
-import org.apache.maven.plugins.annotations.Parameter;
-import org.apache.maven.scm.ScmFile;
-import org.apache.maven.scm.ScmFileSet;
-import org.apache.maven.scm.command.add.AddScmResult;
-import org.apache.maven.scm.command.checkin.CheckInScmResult;
-import org.apache.maven.scm.command.checkout.CheckOutScmResult;
-import org.apache.maven.scm.command.remove.RemoveScmResult;
-import org.apache.maven.scm.command.update.UpdateScmResult;
-import org.apache.maven.scm.provider.git.gitexe.GitExeScmProvider;
-import org.apache.maven.scm.repository.ScmRepository;
-import org.apache.maven.scm.repository.ScmRepositoryException;
-import org.codehaus.plexus.util.FileUtils;
-
 import java.io.File;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
-import java.util.Iterator;
+import java.util.List;
+
+import org.apache.maven.plugin.MojoExecutionException;
+import org.apache.maven.plugin.logging.Log;
+import org.apache.maven.plugins.annotations.Mojo;
+import org.apache.maven.plugins.annotations.Parameter;
+import org.codehaus.plexus.util.FileUtils;
+import org.eclipse.jgit.api.AddCommand;
+import org.eclipse.jgit.api.CommitCommand;
+import org.eclipse.jgit.api.Git;
+import org.eclipse.jgit.api.LogCommand;
+import org.eclipse.jgit.api.PullCommand;
+import org.eclipse.jgit.api.PullResult;
+import org.eclipse.jgit.api.PushCommand;
+import org.eclipse.jgit.api.RmCommand;
+import org.eclipse.jgit.api.Status;
+import org.eclipse.jgit.api.StatusCommand;
+import org.eclipse.jgit.api.errors.GitAPIException;
+import org.eclipse.jgit.api.errors.InvalidRemoteException;
+import org.eclipse.jgit.api.errors.TransportException;
+import org.eclipse.jgit.lib.Constants;
+import org.eclipse.jgit.lib.Repository;
+import org.eclipse.jgit.lib.TextProgressMonitor;
+import org.eclipse.jgit.revwalk.RevCommit;
+import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
+import org.eclipse.jgit.transport.PushResult;
+
+import com.openshift.client.IApplication;
+import com.openshift.client.IOpenShiftConnection;
 
 /**
  * Update an existing application.
@@ -68,66 +78,74 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
     @Parameter(property = PREFIX + "binary", defaultValue = "src/main/openshift")
     protected File openshift;
 
-    private ScmFileSet fileSet;
-    private ScmRepository repo;
-    private GitExeScmProvider provider;
+    private Repository jgitRepo;
+    private Git jgit;
+    private String gitUrl;
 
     @Override
     protected void doExecute(final IOpenShiftConnection connection, final IApplication application) throws MojoExecutionException {
-        initGitObjects(application.getGitUrl());
-        createWorkingCopy();
-        updateFiles();
+    	getLog().info("Deploying on Openshift server:"+connection.getServer()+" app="+application.getName());
+        
+    	gitUrl = application.getGitUrl();
+        
+        cloneOrPullWorkingCopy();
+        
+        deployFiles();
 
         getLog().info("Application redeployed, you can access it on " + application.getApplicationUrl());
     }
 
-    private void initGitObjects(final String gitUrl) throws MojoExecutionException {
-        provider = new GitExeScmProvider();
-        fileSet = new ScmFileSet(workDir);
-        try {
-            repo = new ScmRepository("git", provider.makeProviderScmRepository(gitUrl, ':'));
-        } catch (ScmRepositoryException e) {
+    private void initJGitObjects() throws MojoExecutionException {
+		try {
+	    	FileRepositoryBuilder builder = new FileRepositoryBuilder();
+			jgitRepo = builder.setGitDir(new File(workDir,Constants.DOT_GIT)).readEnvironment().findGitDir().build();
+		} catch (IOException e) {
             throw new MojoExecutionException(e.getMessage(), e);
-        }
+		}
+		jgit = new Git(jgitRepo);
     }
 
-    private void createWorkingCopy() throws MojoExecutionException {
+    private void cloneOrPullWorkingCopy() throws MojoExecutionException {
+    	getLog().info("Creating working copy in "+workDir.getAbsolutePath());
         if (!workDir.exists()) {
             try {
                 FileUtils.forceMkdir(workDir);
+                initJGitObjects();
             } catch (final IOException e) {
                 throw new MojoExecutionException(e.getMessage(), e);
             }
 
             gitClone();
         } else {
+        	initJGitObjects();
+        	
             if (!gitPull()) {
                 gitClone();
             }
         }
     }
 
-    private void updateFiles() throws MojoExecutionException {
+    private void deployFiles() throws MojoExecutionException {
+    	getLog().info("Updating files");
+    	
+    	//Remove webapps directory or every files
         cleanWorkingCopy();
 
-        // now we'll add files from openshift (src/main/openshift) and binary (war)
-        fileSet = new ScmFileSet(workDir);
+        
+        
+        //Copy file from openshift config dir to repo
+        copyDirectory(openshift, workDir);
 
-        // copy user openshift files
-        fileSet.getFileList().addAll(copyDirectory(openshift, workDir));
-
-        // copy new binary/binaries
         try {
-            addNewFiles();
-
-            fileSet.getFileList().clear(); // force a git commit -a
-            gitCommit(application);
+        	gitAddCommitNewFiles();
+            gitPush(application);
         } catch (final IOException e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
     }
 
-    private void addNewFiles() throws MojoExecutionException, IOException {
+    private void gitAddCommitNewFiles() throws MojoExecutionException, IOException {
+    	getLog().info("Adding files to git");
         final File destinationDir = createDestination();
 
         final File added;
@@ -144,20 +162,14 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
         } else {
             added = destinationDir;
         }
+        getLog().info("Added "+added.getAbsolutePath()+ " to the update");
 
         if (binary.isDirectory()) {
-            for (final File file : copyDirectory(binary, added)) {
-                if (file.isDirectory()) {
-                    expandFiles(file);
-                } else {
-                    fileSet.getFileList().add(file);
-                }
-            }
+        	copyDirectory(binary, added);
         } else {
             FileUtils.copyFile(binary, added);
-            fileSet.getFileList().add(added);
         }
-        gitAdd();
+        gitAddCommit();
     }
 
     private File createDestination() throws MojoExecutionException {
@@ -178,167 +190,128 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
     }
 
     private void cleanWorkingCopy() throws MojoExecutionException {
-        fileSet = new ScmFileSet(workDir); // updating fileSet with new files
+    	getLog().info("Clearing work directory");
         final File[] children = workDir.listFiles();
         if (children != null) {
             for (final File child : children) {
                 final String name = child.getName();
-
                 if (useWebapps) {
                     if ("webapps".equals(name)) {
-                        expandFiles(child);
-                        delete(child);
+                        delete(child, getLog());
                     }
                 } else if (!".git".equals(name)) {
-                    expandFiles(child);
-                    delete(child);
+                    delete(child, getLog());
                 }
             }
         }
-        gitRemove();
+        gitRm();
     }
 
-    private void expandFiles(final File file) throws MojoExecutionException {
-        // simulate git remove -r
-        if (file.isDirectory()) {
-            try {
-                fileSet.getFileList().addAll(FileUtils.getFiles(file, null, null, true));
-            } catch (final IOException e) {
-                throw new MojoExecutionException(e.getMessage(), e);
-            }
-        } else {
-            fileSet.getFileList().add(file);
-        }
-    }
-
-    private void gitAdd() throws MojoExecutionException {
-        if (fileSet.getFileList().isEmpty()) {
-            return;
-        }
-
+    private void gitAddCommit() throws MojoExecutionException {
         try {
-            final AddScmResult add = provider.add(repo, fileSet, MESSAGE_PREFIX + " Adding new files to the repository before pushing a new version");
-            if (!add.isSuccess()) {
-                getLog().info(add.getCommandOutput());
-                getLog().warn("Can't add changes, [" + add.getProviderMessage() + "]");
-            } else {
-                if (verbose && add.getCommandOutput() != null) {
-                    getLog().info(add.getCommandOutput());
-                }
-            }
+        	AddCommand addcommand = jgit.add();
+			addcommand.addFilepattern(".").call();
+        	
+			CommitCommand commit = jgit.commit();
+			commit.setMessage(MESSAGE_PREFIX + " Adding new files to the repository before pushing a new version").call();
         } catch (final Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
     }
 
-    private void gitRemove() throws MojoExecutionException {
-        if (fileSet.getFileList().isEmpty()) {
-            return;
-        }
-
-        // doesn't support directory (git remove -r), we expanded file before so just remove dirs here
-        final Iterator<File> it = fileSet.getFileList().iterator();
-        while (it.hasNext()) {
-            if (it.next().isDirectory()) {
-                it.remove();
-            }
-        }
-
+    private void gitRm() throws MojoExecutionException {
         try {
-            final RemoveScmResult remove = provider.remove(repo, fileSet, MESSAGE_PREFIX + " Cleaning the repository before pushing a new version");
-            if (!remove.isSuccess()) {
-                getLog().info(remove.getCommandOutput());
-                getLog().warn("Can't remove changes, [" + remove.getProviderMessage() + "]");
-            } else {
-                if (verbose && remove.getCommandOutput() != null) {
-                    getLog().info(remove.getCommandOutput());
-                }
-            }
+        	//git status
+        	StatusCommand statusCmd = jgit.status();
+        	Status status = statusCmd.call();
+        	//Status.getMissing() contains files marked as locally deleted (not yet deleted in index)
+        	//So we need to make "git rm" on each file 
+        	if(!status.getMissing().isEmpty()){
+            	RmCommand rmCommand = jgit.rm();
+	        	for (String unstagedFile : status.getMissing()) {
+					getLog().info("JGIT : Removing "+unstagedFile);
+	        		rmCommand.addFilepattern(unstagedFile);
+				}
+	        	//git rm <each deleted file>
+	        	rmCommand.call();
+	        	
+	        	//git commit
+	        	RevCommit rmCommit = jgit.commit().setMessage( MESSAGE_PREFIX + " Cleaning the repository before pushing a new version").call();
+	        	getLog().info("Just commited remove file : "+rmCommit.getName());
+	        	
+	        	//Show 5 last logs on output
+	        	LogCommand log = jgit.log().setMaxCount(5);
+	        	for (RevCommit commit : log.call()) {
+	        		getLog().info("log : "+commit.name()+" - "+commit.getShortMessage());
+				}
+        	}
         } catch (final Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
     }
 
-    private void gitCommit(final String app) throws MojoExecutionException {
-        repo.getProviderRepository().setPushChanges(true);
-
-        try {
-            final CheckInScmResult push = provider.checkIn(repo, fileSet, MESSAGE_PREFIX + "Redeploying " + app);
-            if (!push.isSuccess()) {
-                getLog().info(push.getCommandOutput());
-                getLog().warn("Can't push changes, [" + push.getProviderMessage() + "]");
-            } else {
-                final int checkedInFilesSize = push.getCheckedInFiles().size();
-                if (verbose) {
-                    if (push.getCommandOutput() != null) {
-                        getLog().info(push.getCommandOutput());
-                    }
-                    if (checkedInFilesSize > 0) {
-                        getLog().info("Changes:");
-                        Collections.sort(push.getCheckedInFiles(), new Comparator<ScmFile>() {
-                            @Override
-                            public int compare(ScmFile o1, ScmFile o2) {
-                                if (o1.getStatus().equals(o2.getStatus())) {
-                                    return o1.getPath().compareTo(o2.getPath());
-                                }
-                                return o1.getStatus().toString().compareTo(o2.getStatus().toString());
-                            }
-                        });
-
-                        for (final ScmFile file : push.getCheckedInFiles()) {
-                            getLog().info(SPACE + file.getStatus().toString() + " " + file.getPath());
-                        }
-                    }
-                }
-                getLog().info("Pushed " + checkedInFilesSize + " files");
-            }
-        } catch (final Exception e) {
-            throw new MojoExecutionException(e.getMessage(), e);
-        }
+    private void gitPush(final String app) throws MojoExecutionException {
+    	PushCommand pushCmd = jgit.push()
+    			.setForce(true)
+    			.setProgressMonitor(new TextProgressMonitor(new PrintWriter(System.out)))
+    			.setPushAll()
+    			.setOutputStream(System.out);
+    	try {
+			Iterable<PushResult> callResults = pushCmd.call();
+			for (PushResult pushResult : callResults) {
+				getLog().info(pushResult.getMessages());
+			}
+		} catch (InvalidRemoteException e) {
+			getLog().error(e);
+			throw new MojoExecutionException(e.getMessage(), e);
+		} catch (TransportException e) {
+			getLog().error(e);
+			throw new MojoExecutionException(e.getMessage(), e);
+		} catch (GitAPIException e) {
+			getLog().error(e);
+			throw new MojoExecutionException(e.getMessage(), e);
+		}
     }
 
     private boolean gitPull() throws MojoExecutionException {
+    	getLog().info("Pull changes from "+jgit.getRepository().toString());
         try {
-            final UpdateScmResult pull = provider.update(repo, fileSet);
-            if (!pull.isSuccess()) {
-                getLog().warn("Can't update existing repo, redoing the clone [" + pull.getProviderMessage() + "]");
+        	PullCommand command = jgit.pull().setRebase(true);
+        	PullResult pullResult = command.call();
+        	if(!pullResult.isSuccessful()){
+                getLog().warn("Can't update existing repo, redoing the clone [" + pullResult.toString() + "]");
                 return false;
-            } else {
-                if (verbose) {
-                    getLog().info(pull.getCommandOutput());
+        	} else {
+        		if (verbose) {
+                    getLog().info(command.toString());
                 }
-                getLog().info("Updated " + pull.getUpdatedFiles().size() + " files");
+                getLog().info("Updated files from "+ pullResult.getFetchedFrom());
                 return true;
-            }
+        	}
         } catch (final Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
     }
 
     private void gitClone() throws MojoExecutionException {
+    	getLog().info("Cloning master branch from "+gitUrl);
+    	getLog().info("   into "+workDir.getAbsolutePath());
+    	
         try {
-            final CheckOutScmResult clone = provider.checkOut(repo, fileSet);
-            if (!clone.isSuccess()) {
-                getLog().info(clone.getCommandOutput());
-                throw new MojoExecutionException("Can't clone " + repo.toString());
-            } else {
-                if (verbose && clone.getCommandOutput() != null) {
-                    getLog().info(clone.getCommandOutput());
-                }
-                getLog().info("Cloned " + clone.getCheckedOutFiles().size() + " files");
-            }
-        } catch (final MojoExecutionException mee) {
-            throw mee;
+        	Git.cloneRepository().setURI(gitUrl).setDirectory(workDir).setBranch(Constants.MASTER).call();
         } catch (final Exception e) {
             throw new MojoExecutionException(e.getMessage(), e);
         }
     }
 
-    private static void delete(final File child) throws MojoExecutionException {
+    private static void delete(final File child, Log log) throws MojoExecutionException {
         try {
+        	log.info("Deleting tree "+child.getAbsolutePath());
             if (child.isDirectory()) {
+            	log.info("Deleting directory "+child.getAbsolutePath());
                 FileUtils.deleteDirectory(child);
             } else {
+            	log.info("Deleting file "+child.getAbsolutePath());
                 FileUtils.forceDelete(child);
             }
         } catch (IOException e) {
@@ -346,12 +319,12 @@ public class UpdateApplicationMojo extends BaseApplicationMojo {
         }
     }
 
-    private static Collection<File> copyDirectory(final File src, final File dest) throws MojoExecutionException {
+    private static List<File> copyDirectory(final File src, final File dest) throws MojoExecutionException {
         if (src == null || !src.exists()) {
             return Collections.emptyList();
         }
 
-        final Collection<File> copied = new ArrayList<File>();
+        final List<File> copied = new ArrayList<File>();
         if (src.isDirectory()) {
             if (!dest.exists() && !dest.mkdirs()) {
                 throw new MojoExecutionException("Can't create " + dest.getAbsolutePath());
