@@ -31,6 +31,7 @@ import org.eclipse.jgit.lib.TextProgressMonitor;
 import org.eclipse.jgit.revwalk.RevCommit;
 import org.eclipse.jgit.storage.file.FileRepositoryBuilder;
 import org.eclipse.jgit.transport.PushResult;
+import org.eclipse.jgit.transport.SshSessionFactory;
 
 import com.openshift.client.IApplication;
 import com.openshift.client.IOpenShiftConnection;
@@ -40,6 +41,31 @@ import com.openshift.client.IOpenShiftConnection;
  */
 @Mojo(name = "update-application")
 public class UpdateApplicationMojo extends BaseApplicationMojo {
+
+	static {
+		setSshHttpProxy();
+	}
+
+	/**
+	 * Set http proxy for the ssh session if "sshHttpProxyHost" is set
+	 */
+	private static void setSshHttpProxy() {
+		String sshProxyHTTPHost= System.getProperty("sshHttpProxyHost");
+		if (sshProxyHTTPHost == null) {
+			return;
+		}
+		String sshProxyHTTPPortStr = System.getProperty("sshHttpProxyPort");
+		int sshProxyHTTPPort = 3128;
+		try {
+			sshProxyHTTPPort = Integer.valueOf(sshProxyHTTPPortStr);
+		} catch (NumberFormatException nfe) {
+			sshProxyHTTPPort = 3128;
+		}
+		SSHoverHttpSessionFactory sessionFactory = new SSHoverHttpSessionFactory(sshProxyHTTPHost, sshProxyHTTPPort);
+		sessionFactory.Initialize();
+		SshSessionFactory.setInstance(sessionFactory);				
+	}
+	
     private static final String MESSAGE_PREFIX = "[openshift-maven-plugin] ";
 
     /**
