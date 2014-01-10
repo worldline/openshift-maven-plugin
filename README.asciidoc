@@ -25,3 +25,7 @@ then to deploy on OpenShift simply execute:
 To deploy your war as an exploded one add in the plugin configuration:
 
     <binary>${project.build.directory}/${project.build.finalName}</binary>
+
+== License
+
+Apache 2.0
