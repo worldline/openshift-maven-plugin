@@ -25,3 +25,14 @@ then to deploy on OpenShift simply execute:
 To deploy your war as an exploded one add in the plugin configuration:
 
     <binary>${project.build.directory}/${project.build.finalName}</binary>
+
+    
+    
+== IT Tests
+
+To run integration tests, please read BaseIT requirements (ex. set openshift.serverUrl). 
+
+Here is an example to include ITs :
+
+    mvn clean install -Dopenshift.serverUrl=broker.mydomain.fr
+    

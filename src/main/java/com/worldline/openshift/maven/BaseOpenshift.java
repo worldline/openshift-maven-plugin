@@ -60,11 +60,15 @@ public abstract class BaseOpenshift extends AbstractMojo {
     @Parameter(property = PREFIX + "proxySet")
     protected String proxySet;
 
+    public IOpenShiftConnection getOpenShiftConnection() {
+        return new OpenShiftConnectionFactory().getConnection(clientId, user, password, authKey, authVI, serverUrl);
+    }
+
     @Override
     public void execute() throws MojoExecutionException, MojoFailureException {
         tryToGuessNotDefinedCredentials();
         try {
-            final IOpenShiftConnection connection = new OpenShiftConnectionFactory().getConnection(clientId, user, password, authKey, authVI, serverUrl);
+            final IOpenShiftConnection connection = getOpenShiftConnection();
             configure(connection);
             doExecute(connection);
         } catch (final IllegalArgumentException iae) {
