@@ -1,5 +1,6 @@
-== Sample
+== Sample 
 
+Here is a sample _pom.xml_ configuration :
 
     <build>
       <plugins>
@@ -20,6 +21,31 @@ then to deploy on OpenShift simply execute:
 
     mvn clean package openshift:update-application
 
+
+== Available targets
+
+[small, width="40%",frame="topbot",options="header,footer"]
+|======================
+|Target                        |Description
+|openshift:add-cartridge       |Add an embedded cartridge to an existing application.
+|openshift:cartridges          |List available cartridges.
+|openshift:create-application  |Create an application. If the domain doesn't exist it will be created. This target don't send the project source code.
+|openshift:create-domain       |Create a new domain.
+|openshift:delete-application  |Delete an application.
+|openshift:domains             |List all defined domains and applications.
+|openshift:refresh             |Force an application to refresh.
+|openshift:remove-cartridge    |Remove an embedded cartridge to an existing application.
+|openshift:restart             |Force an application to restart.
+|openshift:scale-down          |Force an application to scale down.
+|openshift:scale-up            |Force an application to scale up.
+|openshift:sshkeyadd           |Add an ssh key.
+|openshift:sshkeycheck         |Check an ssh keys by name and add it if she's missing.
+|openshift:sshkeylist          |List all available ssh keys.
+|openshift:start               |Force an application to start.
+|openshift:stop                |Force an application to stop.
+|openshift:update-application  |Update an existing application.
+|======================
+
 == Tip
 
 To deploy your war as an exploded one add in the plugin configuration:
@@ -27,10 +53,14 @@ To deploy your war as an exploded one add in the plugin configuration:
     <binary>${project.build.directory}/${project.build.finalName}</binary>
 
     
-    
-== IT Tests
+== Contribute    
+=== IT Tests
 
 To run integration tests, please read BaseIT requirements (ex. set openshift.serverUrl). 
+
+To avoid ITs :
+
+    mvn clean install -DskipITs=true
 
 Here is an example to include ITs :
 
