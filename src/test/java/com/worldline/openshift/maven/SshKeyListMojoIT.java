@@ -13,7 +13,9 @@ import org.slf4j.LoggerFactory;
 
 @RunWith(JUnit4.class)
 public class SshKeyListMojoIT extends BaseIT {
-	protected static Logger LOG = LoggerFactory.getLogger(SshKeyListMojoIT.class);		
+	protected static Logger LOG = LoggerFactory.getLogger(SshKeyListMojoIT.class);
+	
+	// spy mojo
 	SshKeyListMojo mojo = spy(new SshKeyListMojo());
 	
     @Before
@@ -27,9 +29,7 @@ public class SshKeyListMojoIT extends BaseIT {
 		// spy openshift user
 		doReturn(openshiftUser).when(openShiftConnection).getUser();
 
-		LOG.debug("setup OK sshkeyname={} connection:{}",
-					sshkeyName, 
-					getOpenshiftConnectionInfo(openShiftConnection));
+		LOG.debug("setup OK sshkeyname={}", sshkeyName);
 	}
     
 	@Test

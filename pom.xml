@@ -9,7 +9,14 @@
   <version>0.1-SNAPSHOT</version>
   <packaging>maven-plugin</packaging>
   <name>OpenShift Maven Plugin</name>
-  <description>A simple Maven Plugin aiming to make the interactions with OpenShift easier and integrated.</description>
+  <description>A simple Maven Plugin aiming to make the interactions 
+               with OpenShift easier and integrated.</description>
+
+  <properties>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <maven.version>3.0.5</maven.version>
+    <skipITs>false</skipITs>
+  </properties>
 
   <dependencies>
     <dependency>
@@ -17,14 +24,11 @@
       <artifactId>openshift-java-client</artifactId>
       <version>2.1.0</version>
     </dependency>
-
     <dependency>
 		<groupId>org.eclipse.jgit</groupId>
 		<artifactId>org.eclipse.jgit</artifactId>
 		<version>3.1.0.201310021548-r</version>
 	</dependency>
-            
-
     <dependency>
       <groupId>org.apache.maven.plugin-tools</groupId>
       <artifactId>maven-plugin-annotations</artifactId>
@@ -91,6 +95,7 @@
           </goals>
           <phase>integration-test</phase>
           <configuration>
+            <skipTests>${skipITs}</skipTests>
             <excludes>
               <exclude>none</exclude>
             </excludes>
@@ -114,10 +119,6 @@
     </plugins>
   </reporting>
 
-  <properties>
-    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 
-    <maven.version>3.0.5</maven.version>
-  </properties>
 </project>
 

@@ -16,7 +16,7 @@ import com.openshift.client.IUser;
  * list all available ssh keys
  */
 @Mojo(name = "sshkeylist")
-public class SshKeyListMojo extends BaseOpenshift {
+public class SshKeyListMojo extends BaseSshkeyMojo {
     /**
      * ssh key name (default='*' to list all available keys)
      */
@@ -31,16 +31,6 @@ public class SshKeyListMojo extends BaseOpenshift {
 		this.sshkeyname = sshkeyname;
 	}
 
-	
-	public void printPubKey(final ISSHPublicKey pubKey, int index) {
-		StringBuffer sb = new StringBuffer();
-		sb.append(" key n-").append(index);
-		sb.append(" (type: ").append(pubKey.getKeyType())
-		  .append(") extract : ")
-		  .append(pubKey.getPublicKey().substring(0, 15))
-		  .append("...");
-    	getLog().info(sb.toString());
-	}
 
 	@Override
     public void doExecute(final IOpenShiftConnection connection) throws MojoExecutionException {
@@ -51,8 +41,14 @@ public class SshKeyListMojo extends BaseOpenshift {
 
         // get openshift user
         IUser openshiftUser = connection.getUser();
+        // list openshift user ssh keys
+        List<IOpenShiftSSHKey> sshKeys = getOpenshiftUserSshKeys(filter, openshiftUser);
+        displayOpenshiftUserSshKeys(filter, openshiftUser, sshKeys);
+    }
 
-        List<IOpenShiftSSHKey> sshKeys = null;
+	private List<IOpenShiftSSHKey> getOpenshiftUserSshKeys(String filter,
+			IUser openshiftUser) {
+		List<IOpenShiftSSHKey> sshKeys = null;
         if ("*".equals(filter)) {
             // * : get all openshift user ssh keys
         	sshKeys = openshiftUser.getSSHKeys();
@@ -64,7 +60,12 @@ public class SshKeyListMojo extends BaseOpenshift {
         		sshKeys.add(thekey);
         	}
         }
-        String logStr = "SSh keys for openshiftUser " 
+		return sshKeys;
+	}
+
+	private void displayOpenshiftUserSshKeys(String filter,
+			IUser openshiftUser, List<IOpenShiftSSHKey> sshKeys) {
+		String logStr = "SSh keys for openshiftUser " 
   			  + openshiftUser.getRhlogin() 
   			  + " (sshkeyname:" + filter + ") :";
         emptyLine();
@@ -75,5 +76,15 @@ public class SshKeyListMojo extends BaseOpenshift {
         	printPubKey(pubKey, i++);
         }
         emptyLine();
-    }
+	}
+	
+	private void printPubKey(final ISSHPublicKey pubKey, int index) {
+		StringBuffer sb = new StringBuffer();
+		sb.append(" key n-").append(index);
+		sb.append(" (type: ").append(pubKey.getKeyType())
+		  .append(") extract : ")
+		  .append(pubKey.getPublicKey().substring(0, 15))
+		  .append("...");
+    	getLog().info(sb.toString());
+	}
 }

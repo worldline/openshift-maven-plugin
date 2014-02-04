@@ -14,7 +14,7 @@ import com.openshift.client.SSHPublicKey;
  * add an ssh keys
  */
 @Mojo(name = "sshkeyadd")
-public class SshKeyAddMojo extends BaseOpenshift {
+public class SshKeyAddMojo extends BaseSshkeyMojo {
 	/**
 	 * ssh key name (required)
 	 */
@@ -48,37 +48,11 @@ public class SshKeyAddMojo extends BaseOpenshift {
 			throw new MojoExecutionException(
 					"sshkeyname can't be null");
 		}
-
 		String keypub = getSshpubkeyfile();
-		if (keypub == null) {
-			throw new MojoExecutionException(
-					"sshpubkeyfile can't be null");
-		}
-		File pubKeyFile = new File(keypub);
-		if (!pubKeyFile.exists() || !pubKeyFile.canRead()) {
-			throw new MojoExecutionException(
-					keypub + " does'nt exists or not readable !");
-		}
-
 		// get openshift user
 		IUser openshiftUser = connection.getUser();
-
-		StringBuffer sbSshAdd = new StringBuffer();
-		sbSshAdd.append("Add ssh keys for openshiftUser ")
-				.append(openshiftUser.getRhlogin())
-				.append(" sshkey name:").append(keyname)
-				.append(" path:").append(keypub);
-		emptyLine();
-		getLog().info(sbSshAdd.toString());
-		try {
-			openshiftUser.putSSHKey(keyname, new SSHPublicKey(pubKeyFile));
-		} catch (Exception e) {
-			throw new MojoExecutionException(
-					"Unable to add public ssh key " + keyname 
-					+ e.getClass().getSimpleName() + " : " + e.getMessage(), e);
-		}
-		emptyLine();
-		getLog().info("key " + keyname + " added");
-		emptyLine();
+		// add an ssh key
+		addSshKeyForOpenshiftUser(keyname, keypub, openshiftUser);
 	}
+
 }

@@ -11,8 +11,15 @@ import com.openshift.client.IUser;
 import com.openshift.client.OpenShiftConnectionFactory;
 
 /**
- * common base integration tests
- * pre-requisites : cf ::baseItNotice()
+ * [common base] integration tests
+ * 
+ * To skip ITs : 
+ * 	add " -DskipITs=true" to the maven command line
+ * To run openshift Integration Tests :
+ * 	set the following sysem properties :
+ * 	-Dopenshift.serverUrl (required)
+ *  -Dopenshift.user      (default: demo)
+ *  -Dopenshift.password  (default: demo)
  */
 public class BaseIT {
 	// logguer
@@ -23,16 +30,6 @@ public class BaseIT {
 	// spy OS user
 	IUser openshiftUser = spy(openShiftConnection.getUser());
 
-	// mini how to
-	public static String baseItNotice() {
-		StringBuilder sb = new StringBuilder();
-		sb.append("To run openshift Integration Tests, you should set the following systm properties :\n")
-		  .append("- openshift.serverUrl (required)\n")
-		  .append("- openshift.user      (default: demo)\n")
-	      .append("- openshift.password  (default: demo)\n");
-		return sb.toString();
-	}
-	
 	// log helper for OS connection
 	public static String getOpenshiftConnectionInfo(IOpenShiftConnection openShiftConnection) {
 		String login = openShiftConnection.getUser() != null ? openShiftConnection.getUser().getRhlogin() : "(null)"; 
@@ -50,19 +47,22 @@ public class BaseIT {
     	String systUsr = System.getProperty(OS_PREFIX + "user");
     	String systPwd = System.getProperty(OS_PREFIX + "password");
     	String systSvr = System.getProperty(SERVER_URL_KEY);
+    	
     	boolean assumeItTests = (systSvr != null);
     	if (!assumeItTests) {
-    		LOG.warn(baseItNotice());
+    		LOG.info(" *WARNING* : skip IT test ('{}' is  null)", SERVER_URL_KEY);
     	}
-    	Assume.assumeTrue("skipping IT test (" + SERVER_URL_KEY + " is  null)", 
-    					  assumeItTests);
+    	Assume.assumeTrue(assumeItTests);
     	
     	String clientId = "OpenShift";
     	String user = (systUsr != null ? systUsr : "demo");
     	String password = (systPwd != null ? systPwd : "demo");
     	String authKey = null;
     	String authVI = null;
-        return new OpenShiftConnectionFactory()
+        IOpenShiftConnection osConnection = new OpenShiftConnectionFactory()
         		.getConnection(clientId, user, password, authKey, authVI, systSvr);
+    	LOG.debug("using openshift connection : {}", 
+    			  getOpenshiftConnectionInfo(osConnection));
+		return osConnection;
     }
 }
