@@ -47,18 +47,6 @@ public abstract class BaseOpenshift extends AbstractMojo {
 	@Parameter(property = PREFIX + "authVI")
 	protected String authIV;
 
-	@Parameter(property = PREFIX + "sslChecks", defaultValue = "false")
-	protected boolean sslChecks;
-
-	@Parameter(property = PREFIX + "proxyHost")
-	protected String proxyHost;
-
-	@Parameter(property = PREFIX + "proxyPort")
-	protected String proxyPort;
-
-	@Parameter(property = PREFIX + "proxySet")
-	protected String proxySet;
-
 	@Override
 	public void execute() throws MojoExecutionException, MojoFailureException {
 		tryToGuessNotDefinedCredentials();
@@ -66,10 +54,10 @@ public abstract class BaseOpenshift extends AbstractMojo {
 			try {
 				ConnectionBuilder connectionBuilder = new ConnectionBuilder(serverUrl);
 				AbstractConnectionBuilder abstractConnectionBuilder = null;
-				if (user != null && password != null)
-					abstractConnectionBuilder = connectionBuilder.credentials(user, password);
-				else if (authIV != null && authKey != null)
+				if (authIV != null && authKey != null)
 					abstractConnectionBuilder = connectionBuilder.key(authIV, authKey);
+				else
+					abstractConnectionBuilder = connectionBuilder.credentials(user, password);
 				final IOpenShiftConnection connection = abstractConnectionBuilder.create();
 				doExecute(connection);
 			} catch (final IllegalArgumentException iae) {
